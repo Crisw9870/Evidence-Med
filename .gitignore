@@ -1,0 +1,50 @@
+# === Secrets ===
+.teacher_env
+.env
+*.env
+api.py
+
+# # === Model weights & checkpoints ===
+# Qwen/
+# *.pt
+# *.bin
+# *.safetensors
+# *.ckpt
+# *.h5
+
+# === Large data files ===
+data/
+outputs/
+
+# === Evaluation results (reproducible) ===
+results/
+cmb_eval/results/
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+*.egg
+
+# === IDE ===
+.vscode/
+.claude/
+.idea/
+*.swp
+*.swo
+
+# === OS ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Logs & cache ===
+*.log
+.cache/
+wandb/
+runs/
