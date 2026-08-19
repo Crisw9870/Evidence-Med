@@ -5,16 +5,13 @@
 api.py
 
 # # === Model weights & checkpoints ===
-# Qwen/
-# *.pt
-# *.bin
-# *.safetensors
-# *.ckpt
-# *.h5
+Qwen/
+
 
 # === Large data files ===
 data/
 outputs/
+CMB/
 
 # === Evaluation results (reproducible) ===
 results/
