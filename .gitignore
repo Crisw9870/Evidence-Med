@@ -43,5 +43,6 @@ desktop.ini
 # === Logs & cache ===
 *.log
 cache/
+.cache/
 wandb/
 runs/
