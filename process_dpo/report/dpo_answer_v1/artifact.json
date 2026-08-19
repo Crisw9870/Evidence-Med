@@ -1,0 +1,252 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "循证医学问答模型 Answer-level DPO：完整实验说明与项目复盘",
+    "generatedAt": "2026-08-16T16:30:00Z",
+    "sources": [
+      {"id": "pipeline_readme", "label": "DPO 流程与脚本说明", "path": "process_dpo/README.md"},
+      {"id": "export_stats", "label": "最终 DPO 导出统计", "path": "data/dpo/answer_v1/04_export.stats.json"},
+      {"id": "export_validation", "label": "最终 DPO 导出验收", "path": "data/dpo/answer_v1/04_export.validation.json"},
+      {"id": "training_manifest", "label": "正式 DPO 训练配置", "path": "outputs/evidence-dpo-answer-v1/dpo_training_manifest.json"},
+      {"id": "trainer_state", "label": "正式 DPO 训练日志", "path": "outputs/evidence-dpo-answer-v1/trainer_state.json"},
+      {"id": "train_results", "label": "正式 DPO 训练结果", "path": "outputs/evidence-dpo-answer-v1/train_results.json"},
+      {"id": "eval_results", "label": "正式 DPO 验证结果", "path": "outputs/evidence-dpo-answer-v1/eval_results.json"},
+      {"id": "direct_d0_eval", "label": "原始 Direct-SFT D0 循证测试", "path": "results/evidence_d0_direct_eval/metrics.json"},
+      {"id": "merged_d0_eval", "label": "实际 DPO 起点 merged D0 循证测试", "path": "results/evidence_d0_merged_control_eval/metrics.json"},
+      {"id": "dpo_eval", "label": "DPO D1 循证测试", "path": "results/evidence_dpo_answer_eval/metrics.json"},
+      {"id": "ceval_comparison", "label": "D0 与 D1 的 C-Eval 配对比较", "path": "results/dpo_ceval_comparison.json"},
+      {"id": "report_metrics_sql", "label": "报告指标复现查询", "path": "process_dpo/report/dpo_answer_v1/dpo_report_metrics.sql"}
+    ],
+    "cards": [
+      {"id": "card_pairs", "description": "通过双向一致性、结构隔离和配额审计后导出的训练与验证偏好对总数。", "dataset": "summary", "metrics": [{"label": "最终偏好对", "field": "exported_pairs", "format": "integer"}], "sourceId": "report_metrics_sql"},
+      {"id": "card_pref_accuracy", "description": "DPO 模型在 101 对验证集上给予 chosen 更高隐式奖励的比例，不是医学准确率。", "dataset": "summary", "metrics": [{"label": "验证偏好准确率", "field": "preference_accuracy", "format": "percent"}], "sourceId": "report_metrics_sql"},
+      {"id": "card_grounding", "description": "相对实际 DPO 起点，444 条 held-out 样本中全部预测证据都可定位的比例提升。", "dataset": "summary", "metrics": [{"label": "全证据可定位提升", "field": "grounding_gain", "format": "percentagePoints"}], "sourceId": "report_metrics_sql"},
+      {"id": "card_ceval", "description": "三个医学相关 C-Eval 子任务、5-shot、共 818 题的最终准确率。", "dataset": "summary", "metrics": [{"label": "C-Eval", "field": "ceval_accuracy", "format": "percent"}], "sourceId": "report_metrics_sql"}
+    ],
+    "charts": [
+      {
+        "id": "chart_checkpoint_accuracy",
+        "title": "正式 DPO 各检查点的验证偏好准确率",
+        "type": "bar",
+        "dataset": "checkpoint_metrics",
+        "sourceId": "report_metrics_sql",
+        "encodings": {
+          "x": {"field": "checkpoint", "type": "ordinal", "label": "训练步数"},
+          "y": {"field": "preference_accuracy", "type": "quantitative", "label": "偏好准确率", "format": "percent"},
+          "tooltip": [
+            {"field": "step", "label": "Step", "format": "integer"},
+            {"field": "preference_accuracy", "label": "偏好准确率", "format": "percent"},
+            {"field": "reward_margin", "label": "奖励间隔", "format": "number"},
+            {"field": "eval_loss", "label": "验证损失", "format": "number"}
+          ]
+        },
+        "layout": "full"
+      },
+      {
+        "id": "chart_evidence",
+        "title": "实际 DPO 起点与 DPO 模型的结构及证据指标",
+        "type": "bar",
+        "dataset": "evidence_chart",
+        "sourceId": "report_metrics_sql",
+        "encodings": {
+          "x": {"field": "metric", "type": "nominal", "label": "指标"},
+          "y": {"field": "value", "type": "quantitative", "label": "比例", "format": "percent"},
+          "color": {"field": "model", "type": "nominal", "label": "模型"},
+          "tooltip": [
+            {"field": "metric", "label": "指标"},
+            {"field": "model", "label": "模型"},
+            {"field": "value", "label": "结果", "format": "percent"}
+          ]
+        },
+        "layout": "full"
+      },
+      {
+        "id": "chart_ceval",
+        "title": "C-Eval 医学子任务：D0 与 D1",
+        "type": "bar",
+        "dataset": "ceval_chart",
+        "sourceId": "report_metrics_sql",
+        "encodings": {
+          "x": {"field": "task", "type": "nominal", "label": "子任务"},
+          "y": {"field": "accuracy", "type": "quantitative", "label": "准确率", "format": "percent"},
+          "color": {"field": "model", "type": "nominal", "label": "模型"},
+          "tooltip": [
+            {"field": "task", "label": "子任务"},
+            {"field": "model", "label": "模型"},
+            {"field": "accuracy", "label": "准确率", "format": "percent"}
+          ]
+        },
+        "layout": "full"
+      }
+    ],
+    "tables": [
+      {
+        "id": "table_mix",
+        "title": "最终偏好数据构成",
+        "dataset": "pair_mix",
+        "columns": [
+          {"field": "split", "label": "数据划分"},
+          {"field": "pair_type", "label": "偏好对类型"},
+          {"field": "count", "label": "数量", "format": "integer"},
+          {"field": "ratio", "label": "占比", "format": "percent"},
+          {"field": "purpose", "label": "训练作用"}
+        ],
+        "sourceId": "report_metrics_sql"
+      },
+      {
+        "id": "table_evidence",
+        "title": "444 条 held-out 循证测试完整结果",
+        "dataset": "evidence_table",
+        "columns": [
+          {"field": "metric", "label": "指标"},
+          {"field": "direct_d0", "label": "原 Direct-SFT D0", "format": "percent"},
+          {"field": "merged_d0", "label": "实际起点 merged D0", "format": "percent"},
+          {"field": "dpo_d1", "label": "DPO D1", "format": "percent"},
+          {"field": "fair_delta", "label": "D1 - merged D0", "format": "percentagePoints"},
+          {"field": "interpretation", "label": "解释"}
+        ],
+        "sourceId": "report_metrics_sql"
+      },
+      {
+        "id": "table_ceval_detail",
+        "title": "C-Eval 配对评测明细",
+        "dataset": "ceval_table",
+        "columns": [
+          {"field": "task", "label": "任务"},
+          {"field": "n", "label": "题数", "format": "integer"},
+          {"field": "d0_correct", "label": "D0 正确", "format": "integer"},
+          {"field": "d1_correct", "label": "D1 正确", "format": "integer"},
+          {"field": "d0_accuracy", "label": "D0", "format": "percent"},
+          {"field": "d1_accuracy", "label": "D1", "format": "percent"},
+          {"field": "delta", "label": "变化", "format": "percentagePoints"},
+          {"field": "p_value", "label": "McNemar p", "format": "number"}
+        ],
+        "sourceId": "report_metrics_sql"
+      },
+      {
+        "id": "table_claims",
+        "title": "指标含义与安全表述",
+        "dataset": "claim_guide",
+        "columns": [
+          {"field": "number", "label": "数字"},
+          {"field": "means", "label": "它真正表示什么"},
+          {"field": "safe_claim", "label": "推荐说法"},
+          {"field": "avoid", "label": "避免说法"}
+        ],
+        "sourceId": "report_metrics_sql"
+      }
+    ],
+    "blocks": [
+      {"id": "title", "type": "markdown", "body": "# 循证医学问答模型 Answer-level DPO\n\n完整实验说明、结果解读与简历表达指南"},
+      {"id": "technical_summary", "type": "markdown", "body": "## 技术摘要\n\n本阶段在 Qwen2.5-7B-Instruct 的循证 SFT 模型基础上完成 Answer-level Direct Preference Optimization（DPO）。核心目标不是重新学习任务类型或证据标注，而是在保持同一输入、任务标签和证据结构的条件下，让模型更偏好医学上更稳健、论证更充分、结论更克制的回答。\n\n项目从候选生成、结构投影、MiMo-v2.5 盲化 Judge、A/B 交换一致性审计、配额导出、LoRA-DPO 训练，到 held-out 循证评测与 C-Eval 知识保持评测形成了闭环。最终获得 1,243 对训练数据和 101 对验证数据。正式训练 1 epoch 后，验证偏好准确率达到 88.12%，奖励间隔达到 +0.286；相对实际 DPO 起点，held-out 样本全证据可定位率由 95.72% 升至 97.30%，C-Eval 为 89.49%。\n\n最稳妥的项目结论是：**DPO 提升了回答偏好对齐和证据忠实性，同时基本保持医学知识能力；它没有证明临床正确率显著提升，也没有明显改善教师边界下的证据 exact F1。**"},
+      {"id": "metric_strip", "type": "metric-strip", "cardIds": ["card_pairs", "card_pref_accuracy", "card_grounding", "card_ceval"]},
+      {"id": "key_findings", "type": "markdown", "body": "## 关键发现\n\n1. **偏好优化确实学到了排序信号。** 验证偏好准确率从 step 25 的 69.31% 持续升至 step 75/78 的 88.12%，同时奖励间隔从 +0.046 扩大到 +0.286，验证损失从 0.671 降至 0.567。\n2. **最清晰的下游收益是证据忠实性。** 对 444 条 held-out 样本，样本级全证据可定位率相对实际训练起点提高 1.58 个百分点，微观 grounding 提高 0.43 个百分点。\n3. **精确证据边界基本持平。** Evidence exact F1 仅由 57.832% 变为 57.860%，说明模型更少生成无法在原文中定位的证据，但没有学会更精确地复现教师 span 边界。\n4. **医学知识没有明显退化。** C-Eval 总分由实际起点的 89.12% 变为 89.49%，净增加 3 题；McNemar p=0.375，差异不显著，因此应表述为“保持”，而不是“显著提升”。\n5. **数据质量控制比强行凑量更重要。** 最终规模低于最初设想的 3,000+200，但自然偏好对经过双向 Judge；controlled negative 被限制在约 10%，避免模板捷径主导训练。"},
+      {"id": "chart_checkpoint", "type": "chart", "chartId": "chart_checkpoint_accuracy"},
+      {"id": "checkpoint_note", "type": "markdown", "body": "图中四个柱子是实际保存的验证检查点，不是对稠密时间序列的趋势拟合。四次评测均使用同一 101 对验证集；最终 89/101 对被正确排序。由于验证集较小，这一指标用于确认优化目标被学习，不用于代表临床准确率。", "sourceId": "trainer_state"},
+      {"id": "scope", "type": "markdown", "body": "## 范围、数据与指标定义\n\n### 模型版本\n\n- **D0（训练起点）**：Qwen2.5-7B-Instruct 合并循证 SFT adapter 后的模型。DPOTrainer 禁用新 DPO adapter 时，这个 merged D0 作为冻结 reference。\n- **D1（最终模型）**：在 merged D0 上训练得到的 Answer-level DPO LoRA adapter。\n- **教师 / Judge**：候选目标来源沿用原教师结果；偏好判定使用 MiMo-v2.5。教师与 Judge 可以不同，因为前者提供参考答案，后者比较同题候选，但必须分别控制偏差。\n\n### Answer-level 的边界\n\n每一对 chosen/rejected 只允许 `missing_information`、`clinical_reasoning`、`final_answer` 三个回答字段不同；task type、sufficiency、evidence 等字段被冻结并保持一致。这样训练信号集中在“回答怎样写得更好”，避免模型把偏好损失用于学习标签或证据结构差异。\n\n### 三类偏好对\n\n- `target_vs_model`：教师目标 T 与自然模型回答 M 的比较，训练模型靠近高质量目标。\n- `model_vs_model`：同一来源下自然候选中的 M_best 与 M_worst，学习真实模型错误之间的细粒度差异。\n- `controlled_negative`：教师目标 T 与人工控制的负例 N，强化对明确错误或不良回答模式的拒绝。\n\n“偏好准确率”是 chosen 的隐式奖励高于 rejected 的比例；“奖励间隔”是两者平均奖励差。二者只衡量偏好排序学习。Grounding 衡量预测证据能否在输入原文中定位；Evidence exact F1 还要求边界与教师标注精确一致。"},
+      {"id": "methodology", "type": "markdown", "body": "## 方法与工程流程\n\n### 1. 候选生成：两主候选加一次按需补生成\n\n每个来源默认生成 `greedy` 与 `sample_t0.8` 两个候选；若投影后不足两个不同 answer-view，再补一次 `sample_t0.6`。与固定生成四个回答相比，这一策略显著减少 GPU 时间，同时保留 `model_vs_model` 所需的候选多样性。生成后按三个回答字段去重，不因重复候选制造伪偏好。\n\n### 2. 投影准入：结构漂移作为诊断，不作为自然回答的一票否决\n\n自然候选只需成功解析、回答字段类型合法。随后把三个回答字段投影到教师冻结结构，再执行 Schema、硬失败和 Answer-level 隔离检查。候选自行修改 task type、sufficiency、evidence span 边界或 importance 会被记录，但不直接阻止它进入 Judge。这个设计解决了“大量自然回答看起来可用，却因为未逐字复现教师结构而无法组成 `target_vs_model`”的问题。\n\n### 3. MiMo Judge：盲化比较与失败恢复\n\n候选以 A/B 盲化顺序提供给 MiMo-v2.5，Judge 输出胜负、分项分数、置信度、硬错误和理由。脚本对解析失败、字段缺失和不完整结果保留逐字段诊断，并支持断点续跑。医学正确性、强断言、无证据治疗建议等不由结构准入预判，而由 Judge 结合题目证据判断。\n\n### 4. A/B 交换：修正位置偏置\n\n早期单向结果暴露出明显的 A 位置偏置，因此对满足初筛条件的自然偏好对交换 A/B 再评一次。严格 Tier A 要求两次映射回原候选后指向同一 winner，且每次 confidence≥0.85、分差≥2、winner 无硬错误；容量不足时才允许更严格置信度约束下的 Tier B，且限制其占自然对的比例。最终自然 pair 的原始 A 胜比例控制在 45%–55%，不是通过事后翻转 chosen/rejected 伪造平衡。\n\n### 5. 动态导出：先保证质量，再决定规模\n\n导出不跨类型补位，controlled 严格不超过 10%，每个 source 最多 2 对，train/validation source 零重叠。最终配比为约 62% `target_vs_model`、28% `model_vs_model`、10% `controlled_negative`。全部 1,344 对通过 Answer-level 隔离检查，Tier B 只占自然对约 6%–8%。\n\n### 6. 正式训练\n\n使用 LoRA-DPO，beta=0.1、sigmoid loss、学习率 5e-6、cosine scheduler、warmup ratio 0.1、bf16、1 epoch。单卡 batch size=2，梯度累积 8，有效 batch size=16；最大输入 2,048 tokens，最大回答 1,152 tokens。共 78 个优化步骤，训练耗时约 22 分 24 秒，train loss=0.6248，LoRA 参数约 2,018.5 万，未观察到 NaN、Inf 或 OOM。"},
+      {"id": "pair_table", "type": "table", "tableId": "table_mix"},
+      {"id": "pair_note", "type": "markdown", "body": "训练集实际由 771 对 target_vs_model、348 对 model_vs_model 和 124 对 controlled negative 组成；验证集对应为 63、28、10。训练集覆盖 1,072 个唯一来源，验证集覆盖 89 个，单来源最多两对。", "sourceId": "export_stats"},
+      {"id": "evaluation", "type": "markdown", "body": "## 评测设计与结果\n\n评测分成两层：第一层验证 DPO 是否学会偏好排序；第二层验证生成行为和医学知识是否保持。偏好验证直接使用 101 对隔离的 validation pair。下游生成评测使用 444 条 held-out 循证数据、greedy 解码和 1,152 token 上限。知识保持使用 C-Eval 的基础医学、临床医学和医师资格三个子任务，5-shot，共 818 题。\n\n公平的 DPO 增量比较必须使用 **merged D0 → DPO D1**，因为 merged D0 才是训练时真正的 policy/reference 起点。原 Direct-SFT adapter 结果只作为历史上下文，不应用于把合并差异错误归因于 DPO。"},
+      {"id": "chart_evidence_block", "type": "chart", "chartId": "chart_evidence"},
+      {"id": "evidence_note", "type": "markdown", "body": "D1 的主要收益是样本级全证据可定位率和微观 grounding；严格 JSON 保持 100%。Schema valid、critical span F1 和 sufficiency 有不足 0.5 个百分点的小幅波动。Exact F1 基本不变，说明“证据存在于原文”与“边界精确匹配教师”是两个不同目标。", "sourceId": "dpo_eval"},
+      {"id": "evidence_table_block", "type": "table", "tableId": "table_evidence"},
+      {"id": "ceval_intro", "type": "markdown", "body": "### C-Eval：知识保持门槛通过\n\nDPO 相对 merged D0 总计从 729/818 变为 732/818：4 题由错变对，1 题由对变错，净增 3 题。提升集中在临床医学（175/200→178/200），基础医学无变化，医师资格一增一减。配对 McNemar p=0.375，不能排除随机波动，因此报告将其解释为知识能力基本保持。", "sourceId": "ceval_comparison"},
+      {"id": "chart_ceval_block", "type": "chart", "chartId": "chart_ceval"},
+      {"id": "ceval_table_block", "type": "table", "tableId": "table_ceval_detail"},
+      {"id": "limitations", "type": "markdown", "body": "## 局限与稳健性\n\n- **Judge 不是临床专家金标准。** MiMo-v2.5 的双向一致性可以降低位置偏差，但不能消除共同偏见、偏好长回答或模板风格偏好。\n- **验证集规模有限。** 101 对足以判断是否学习了排序目标，但不足以细分到疾病类型、风险等级和 pair 类型后仍得到稳定估计。\n- **chosen 更长的比例较高。** 最终 1,344 对中 chosen 更长约占 81.3%，因此存在一定长度偏好风险；需要在最终盲评中把医学质量与篇幅效应分开。\n- **缺少医学专家盲评。** 当前结果证明自动偏好与证据忠实性改善，不能直接证明临床决策更安全。\n- **单次训练、单一随机种子。** 尚未用多种子验证 88.12% 偏好准确率和下游增益的稳定性。\n- **C-Eval 覆盖有限。** 只评了三个医学相关选择题子任务；它不覆盖开放式临床推理、拒答校准和高风险治疗建议。\n- **教师 span 边界可能不是唯一正确答案。** Evidence exact F1 对边界差异敏感，因此不应把它单独当作证据质量总指标。\n\n额外对照显示，原 Direct-SFT D0 与合并后的 D0 在 task type 指标上差异较大，因此 task type 的历史下降主要不能归因给 DPO。基于实际起点比较，DPO 的 task type 反而小幅增加 0.68 个百分点。"},
+      {"id": "claims_intro", "type": "markdown", "body": "## 如何正确解释数字\n\n下面这张表可直接用于答辩或面试前自查。核心原则是把“训练目标指标”“结构/证据指标”“知识评测”分开，不用一个数字替代另一个概念。"},
+      {"id": "claims_table_block", "type": "table", "tableId": "table_claims"},
+      {"id": "resume", "type": "markdown", "body": "## 简历写法\n\n**项目标题**\n\n循证医学问答模型偏好优化（Answer-level DPO）｜Qwen2.5-7B、LoRA、MiMo-v2.5 Judge\n\n**推荐项目描述**\n\n- 设计 Answer-level DPO 数据构建流程，冻结 task type、sufficiency 与 evidence 等结构字段，仅优化 `missing_information`、`clinical_reasoning` 和 `final_answer`；构建 target-vs-model、model-vs-model、controlled-negative 三类偏好对。\n- 针对 Judge 的 A/B 位置偏置，引入盲化交换复评、置信度/分差门槛与 Tier A/B 一致性裁决；从 9,599 条初始 judgment 中筛选并导出 1,243 条训练对和 101 条验证对，controlled negative 控制在 10%，且 train/validation source 零重叠。\n- 基于 Qwen2.5-7B 进行 LoRA-DPO 训练，验证偏好准确率达到 88.12%，奖励间隔达到 +0.286；在 444 条 held-out 循证测试上将样本级全证据可定位率从 95.72% 提升至 97.30%，严格 JSON 保持 100%。\n- 使用 818 道医学相关 C-Eval 题进行知识保持评测，最终准确率 89.49%，相对训练起点无显著退化；完成训练、导出、审计、断点恢复和自动评测脚本的闭环。\n\n**一句话概括**\n\n围绕循证问答的回答质量构建了可审计的 DPO 数据和训练闭环，重点解决自然候选结构准入、Judge 位置偏置与知识保持验证问题。"},
+      {"id": "interview", "type": "markdown", "body": "## 面试讲解参考\n\n### 60 秒版本\n\n这个项目是在循证医学 SFT 模型上做 Answer-level DPO。最初的问题是，自然模型回答往往不会逐字复现教师的 task、sufficiency 和 evidence 结构，导致看起来可用的回答进不了偏好比较。我把准入逻辑改成只校验回答字段，并把它投影回教师冻结结构，这样既保留 Answer-level 隔离，又让自然回答可以进入 Judge。随后我发现单向 Judge 有明显 A 位置偏置，因此增加 A/B 交换复评和双向一致性裁决，最终导出 1,344 对高置信偏好数据。LoRA-DPO 训练后，验证偏好准确率达到 88.12%，held-out 全证据可定位率提升 1.58 个百分点，C-Eval 保持在 89.49%。所以我的结论不是“医学能力显著提升”，而是回答偏好和证据忠实性得到改善，同时知识能力基本保持。\n\n### 高频追问\n\n**为什么不是只生成 chosen 和 rejected 两个回答？** 生成阶段并不知道谁会成为 chosen。两个主候选提供多样性，教师 target 也可参与比较；Judge 后才确定顺序。第三个候选只是两个主候选不足或重复时的按需 fallback。\n\n**为什么教师和 Judge 可以不同？** 教师负责提供参考目标，Judge 负责比较候选，两者角色不同。可行性的前提是冻结比较范围、盲化位置、双向复评，并对最终数据做结构与分布审计。\n\n**为什么最终数据少于 3,000+200？** 双向一致、置信度、分差、类型配额、source 隔离和 controlled≤10% 共同限制了容量。DPO 直接依赖偏好标签方向，少量高置信数据比用低质量或模板负例强行补量更可靠。\n\n**88.12% 是什么？** 它是验证偏好对上 chosen reward 高于 rejected 的比例，说明模型学到了偏好排序，不是医学答题准确率。\n\n**项目最大的工程问题是什么？** 一是结构约束过严会把自然回答误杀；二是 Judge 的位置偏置会污染标签；三是评测基线必须与真实 DPO 起点一致，否则会把模型合并差异误算成 DPO 效果。"},
+      {"id": "next_steps", "type": "markdown", "body": "## 推荐的下一步\n\n1. **做最终盲化 Answer-level D0/D1 对比。** 在未参与偏好数据构建的病例上随机呈现 D0 与 D1，按医学正确性、证据支持、过度断言、可执行性和简洁性分别评分；优先加入少量医生复核。\n2. **控制长度偏好。** 对回答长度分层报告胜率，或构造长度相近的偏好对，确认收益不是单纯来自更长回答。\n3. **细分高风险错误。** 独立统计无证据治疗建议、错误剂量、错误排除诊断和虚假确定性；这些指标比综合分更接近真实安全价值。\n4. **扩展知识与校准评测。** 在更多医学任务、开放式病例和拒答/信息不足场景上复测，并报告置信区间。\n5. **如需论文级结论，再做多随机种子。** 实习项目当前闭环已经完成；只有在追求更严格因果归因或论文投稿时，才需要多种子和更大规模专家评测。"},
+      {"id": "further_questions", "type": "markdown", "body": "## 后续研究问题\n\n- DPO 的 grounding 收益主要来自哪类 pair：target_vs_model、model_vs_model 还是 controlled negative？\n- 在回答长度匹配后，D1 是否仍被盲化 Judge 或医生稳定偏好？\n- Teacher span 边界与临床上可接受的证据范围不一致时，如何设计更稳健的软匹配指标？\n- 对信息不足病例，DPO 是否降低了过度诊断和无证据治疗建议？\n- 88.12% 的验证排序准确率能否在另一批来源完全独立的数据上复现？"},
+      {"id": "completion", "type": "markdown", "body": "## 项目完成度判断\n\n以实习项目标准，DPO 阶段可以视为**已完成**：数据生成、候选准入、双向 Judge、审计导出、smoke、正式训练、held-out 循证评测和 C-Eval 均已跑通，并且结论边界清楚。后续盲化医生评测属于增强可信度的下一阶段，不影响当前将其作为完整项目写入简历。"}
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-08-16T16:30:00Z",
+    "status": "ready",
+    "datasets": {
+      "summary": [
+        {"exported_pairs": 1344, "train_pairs": 1243, "validation_pairs": 101, "preference_accuracy": 0.8811880946, "reward_margin": 0.2862515152, "grounding_gain": 0.015766, "ceval_accuracy": 0.8948655257, "ceval_delta": 0.0036674817, "train_runtime_minutes": 22.3975}
+      ],
+      "checkpoint_metrics": [
+        {"checkpoint": "step 25", "step": 25, "preference_accuracy": 0.6930692792, "reward_margin": 0.0463182665, "eval_loss": 0.6712484360},
+        {"checkpoint": "step 50", "step": 50, "preference_accuracy": 0.8415841460, "reward_margin": 0.2177282125, "eval_loss": 0.5947985649},
+        {"checkpoint": "step 75", "step": 75, "preference_accuracy": 0.8811880946, "reward_margin": 0.2826156020, "eval_loss": 0.5687543154},
+        {"checkpoint": "step 78", "step": 78, "preference_accuracy": 0.8811880946, "reward_margin": 0.2862515152, "eval_loss": 0.5670167804}
+      ],
+      "pair_mix": [
+        {"split": "Train", "pair_type": "target_vs_model", "count": 771, "ratio": 0.6202735318, "purpose": "教师目标与自然回答比较"},
+        {"split": "Train", "pair_type": "model_vs_model", "count": 348, "ratio": 0.2799678198, "purpose": "自然候选间细粒度排序"},
+        {"split": "Train", "pair_type": "controlled_negative", "count": 124, "ratio": 0.0997586484, "purpose": "拒绝明确错误模式"},
+        {"split": "Validation", "pair_type": "target_vs_model", "count": 63, "ratio": 0.6237623762, "purpose": "教师目标与自然回答比较"},
+        {"split": "Validation", "pair_type": "model_vs_model", "count": 28, "ratio": 0.2772277228, "purpose": "自然候选间细粒度排序"},
+        {"split": "Validation", "pair_type": "controlled_negative", "count": 10, "ratio": 0.0990099010, "purpose": "拒绝明确错误模式"}
+      ],
+      "evidence_chart": [
+        {"metric": "严格 JSON", "model": "merged D0", "value": 1.0},
+        {"metric": "严格 JSON", "model": "DPO D1", "value": 1.0},
+        {"metric": "Schema 合法", "model": "merged D0", "value": 0.995495},
+        {"metric": "Schema 合法", "model": "DPO D1", "value": 0.993243},
+        {"metric": "全证据可定位", "model": "merged D0", "value": 0.957207},
+        {"metric": "全证据可定位", "model": "DPO D1", "value": 0.972973},
+        {"metric": "微观 grounding", "model": "merged D0", "value": 0.98882},
+        {"metric": "微观 grounding", "model": "DPO D1", "value": 0.993146}
+      ],
+      "evidence_table": [
+        {"metric": "Strict JSON", "direct_d0": 0.993243, "merged_d0": 1.0, "dpo_d1": 1.0, "fair_delta": 0.0, "interpretation": "结构输出保持稳定"},
+        {"metric": "Schema valid", "direct_d0": 0.993243, "merged_d0": 0.995495, "dpo_d1": 0.993243, "fair_delta": -0.002252, "interpretation": "下降 1 个样本，幅度很小"},
+        {"metric": "Sample fully grounded", "direct_d0": 0.95045, "merged_d0": 0.957207, "dpo_d1": 0.972973, "fair_delta": 0.015766, "interpretation": "主要正向结果"},
+        {"metric": "Micro grounding", "direct_d0": 0.9886, "merged_d0": 0.98882, "dpo_d1": 0.993146, "fair_delta": 0.004326, "interpretation": "预测 span 更少脱离原文"},
+        {"metric": "Evidence exact F1", "direct_d0": 0.589687, "merged_d0": 0.578321, "dpo_d1": 0.578601, "fair_delta": 0.00028, "interpretation": "基本持平"},
+        {"metric": "Critical span F1", "direct_d0": 0.481038, "merged_d0": 0.489195, "dpo_d1": 0.484729, "fair_delta": -0.004466, "interpretation": "小幅波动"},
+        {"metric": "Task type", "direct_d0": 0.79955, "merged_d0": 0.693694, "dpo_d1": 0.70045, "fair_delta": 0.006756, "interpretation": "DPO 相对实际起点略升"},
+        {"metric": "Sufficiency", "direct_d0": 0.869369, "merged_d0": 0.887387, "dpo_d1": 0.882883, "fair_delta": -0.004504, "interpretation": "基本保持"},
+        {"metric": "Ended with EOS", "direct_d0": 1.0, "merged_d0": 1.0, "dpo_d1": 1.0, "fair_delta": 0.0, "interpretation": "无截断退化"}
+      ],
+      "ceval_chart": [
+        {"task": "基础医学", "model": "merged D0", "accuracy": 0.9028571429},
+        {"task": "基础医学", "model": "DPO D1", "accuracy": 0.9028571429},
+        {"task": "临床医学", "model": "merged D0", "accuracy": 0.875},
+        {"task": "临床医学", "model": "DPO D1", "accuracy": 0.89},
+        {"task": "医师资格", "model": "merged D0", "accuracy": 0.8939051919},
+        {"task": "医师资格", "model": "DPO D1", "accuracy": 0.8939051919},
+        {"task": "总体", "model": "merged D0", "accuracy": 0.8911980440},
+        {"task": "总体", "model": "DPO D1", "accuracy": 0.8948655257}
+      ],
+      "ceval_table": [
+        {"task": "基础医学", "n": 175, "d0_correct": 158, "d1_correct": 158, "d0_accuracy": 0.9028571429, "d1_accuracy": 0.9028571429, "delta": 0.0, "p_value": 1.0},
+        {"task": "临床医学", "n": 200, "d0_correct": 175, "d1_correct": 178, "d0_accuracy": 0.875, "d1_accuracy": 0.89, "delta": 0.015, "p_value": 0.25},
+        {"task": "医师资格", "n": 443, "d0_correct": 396, "d1_correct": 396, "d0_accuracy": 0.8939051919, "d1_accuracy": 0.8939051919, "delta": 0.0, "p_value": 1.0},
+        {"task": "总体", "n": 818, "d0_correct": 729, "d1_correct": 732, "d0_accuracy": 0.8911980440, "d1_accuracy": 0.8948655257, "delta": 0.0036674817, "p_value": 0.375}
+      ],
+      "claim_guide": [
+        {"number": "88.12%", "means": "验证偏好对中 chosen reward 高于 rejected 的比例", "safe_claim": "偏好排序准确率达到 88.12%", "avoid": "医学准确率达到 88.12%"},
+        {"number": "97.30%", "means": "每条样本的所有预测证据都能在输入原文定位", "safe_claim": "样本级全证据可定位率达到 97.30%", "avoid": "临床正确率达到 97.30%"},
+        {"number": "+1.58 pp", "means": "D1 相对 merged D0 的样本级 grounding 提升", "safe_claim": "证据忠实性得到改善", "avoid": "诊疗质量提升 1.58%"},
+        {"number": "89.49%", "means": "818 道医学相关 C-Eval 选择题准确率", "safe_claim": "知识能力基本保持", "avoid": "医学知识显著提升"},
+        {"number": "1,344 对", "means": "最终高置信 train+validation 偏好对", "safe_claim": "导出 1,344 对审计后偏好数据", "avoid": "构造了 9,599 条高质量训练数据"},
+        {"number": "9,599 条", "means": "完成解析的初始 judgment 数，不等于最终训练对", "safe_claim": "对 9,599 条 judgment 进行筛选与一致性审计", "avoid": "使用 9,599 对数据训练 DPO"}
+      ]
+    }
+  },
+  "sources": [
+    {"id": "pipeline_readme", "label": "DPO 流程与脚本说明", "path": "process_dpo/README.md"},
+    {"id": "export_stats", "label": "最终 DPO 导出统计", "path": "data/dpo/answer_v1/04_export.stats.json"},
+    {"id": "export_validation", "label": "最终 DPO 导出验收", "path": "data/dpo/answer_v1/04_export.validation.json"},
+    {"id": "training_manifest", "label": "正式 DPO 训练配置", "path": "outputs/evidence-dpo-answer-v1/dpo_training_manifest.json"},
+    {"id": "trainer_state", "label": "正式 DPO 训练日志", "path": "outputs/evidence-dpo-answer-v1/trainer_state.json"},
+    {"id": "train_results", "label": "正式 DPO 训练结果", "path": "outputs/evidence-dpo-answer-v1/train_results.json"},
+    {"id": "eval_results", "label": "正式 DPO 验证结果", "path": "outputs/evidence-dpo-answer-v1/eval_results.json"},
+    {"id": "direct_d0_eval", "label": "原始 Direct-SFT D0 循证测试", "path": "results/evidence_d0_direct_eval/metrics.json"},
+    {"id": "merged_d0_eval", "label": "实际 DPO 起点 merged D0 循证测试", "path": "results/evidence_d0_merged_control_eval/metrics.json"},
+    {"id": "dpo_eval", "label": "DPO D1 循证测试", "path": "results/evidence_dpo_answer_eval/metrics.json"},
+    {"id": "ceval_comparison", "label": "D0 与 D1 的 C-Eval 配对比较", "path": "results/dpo_ceval_comparison.json"},
+    {"id": "report_metrics_sql", "label": "报告指标复现查询", "path": "process_dpo/report/dpo_answer_v1/dpo_report_metrics.sql"}
+  ]
+}
