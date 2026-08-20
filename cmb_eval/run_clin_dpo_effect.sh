@@ -20,7 +20,7 @@ DEFAULT_CLIN_SYSTEM_PROMPT="你是一名严谨的临床医生。请只根据给�
 CLIN_SYSTEM_PROMPT="${CLIN_SYSTEM_PROMPT-$DEFAULT_CLIN_SYSTEM_PROMPT}" # 显式设为空字符串可关闭
 
 # ── Judge 配置 ─────────────────────────────────────────────
-RUN_JUDGE="${RUN_JUDGE:-0}"                                    # 是否运行 Judge（0=只生成回答，1=生成+评审）
+RUN_JUDGE="${RUN_JUDGE:-1}"                                    # 是否运行 Judge（0=只生成回答，1=生成+评审）
 JUDGE_WORKERS="${JUDGE_WORKERS:-8}"                            # Judge 并发线程数
 JUDGE_LIMIT="${JUDGE_LIMIT:-0}"                                # 限制评审条数（0=全部）
 BOOTSTRAP_ITERS="${BOOTSTRAP_ITERS:-5000}"                     # bootstrap 重采样次数（用于置信区间）
