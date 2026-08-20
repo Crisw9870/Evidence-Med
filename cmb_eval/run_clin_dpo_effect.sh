@@ -7,7 +7,7 @@ set -euo pipefail
 # ── 路径变量 ──────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE="$(cd "$SCRIPT_DIR/.." && pwd)"                     # /home/medgpt
-OUTPUT_ROOT="${1:-$SCRIPT_DIR/results/clin_dpo_effect}"   # 可选第 1 参数覆盖输出目录
+OUTPUT_ROOT="${1:-$SCRIPT_DIR/results/clin_dpo}"   # 可选第 1 参数覆盖输出目录
 
 # ── 模型与超参（均可通过环境变量覆盖）─────────────────────
 PYTHON_BIN="${PYTHON_BIN:-/root/miniconda3/envs/medgpt/bin/python}"
