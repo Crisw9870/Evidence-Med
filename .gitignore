@@ -46,3 +46,8 @@ cache/
 .cache/
 wandb/
 runs/
+
+# === codex ===
+findings.md
+progress.md
+task_plan.md
