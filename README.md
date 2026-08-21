@@ -2,7 +2,11 @@
 
 基于 Qwen2.5-7B-Instruct 的**证据可追溯医疗问答**训练与评估项目。
 
-核心思想：让模型在回答医疗问题时，不只是给出答案，还要输出**可检查、可追踪的结构化证据** — 从病例原文中逐字抽取、标记重要性、判断充分性，为后续反事实训练和偏好优化提供基础。
+> **核心思想：** 让模型在回答医疗问题时，不只是给出答案，还要输出**可检查、可追踪的结构化证据** — 从病例原文中逐字抽取、标记重要性、判断充分性，为后续反事实训练和偏好优化提供基础。
+
+> **当前状态（2026-08-21）：** Evidence-SFT 为默认模型，Evidence-DPO 为待复核候选。详见 [项目总结报告](docs/项目总结报告.md)。
+
+---
 
 ## 项目架构
 
@@ -34,6 +38,44 @@
 │  Evidence 指标 / CEval / CMB-Exam / CMB-Clin      │
 └──────────────────────────────────────────────────┘
 ```
+
+## 核心实验结果
+
+### Evidence-SFT 能力验证（444 条 held-out test）
+
+| 指标 | Direct | Two-stage | 说明 |
+|------|--------|-----------|------|
+| Schema 合法率 | **99.55%** | **99.55%** | ✅ 两路均达成 |
+| Evidence Grounding | **98.68%** | **99.05%** | ✅ 预测证据可逐字回查原文 |
+| 边界兼容 F1 | **83.36%** | **84.51%** | ✅ 与 teacher 证据高度一致 |
+| Task Type Macro-F1 | 80.16% | 82.00% | ⚠️ 可用 |
+
+### 模型对比（CMB-Exam 11,200 道选择题）
+
+| 模型 | Accuracy | 相对 Base |
+|------|----------|-----------|
+| Base | 75.929% | - |
+| Full-SFT | 75.366% | -0.563 pp |
+| **Evidence-SFT** | **77.384%** | **+1.455 pp** |
+| Evidence-DPO | 77.330% | +1.402 pp |
+
+### DPO 效果评估
+
+| 评估维度 | 结果 | 结论 |
+|----------|------|------|
+| 训练收敛 | 偏好准确率 88.12%，reward margin 0.286 | ✅ 训练成功 |
+| 知识保持 | CMB-Exam -0.054 pp，p=0.586 | ✅ 基本不退化 |
+| 临床提升 | 净胜率 +6.25 pp，CI [-12.05, +24.42] | ❌ 未证明 |
+| 安全性 | hard error +1.68 pp，CI 跨 0 | ❌ 未建立 |
+
+### 当前模型决策
+
+| 角色 | 模型 | 理由 |
+|------|------|------|
+| **默认模型** | Evidence-SFT | CMB-Exam 最佳，临床安全证据更保守 |
+| **候选模型** | Evidence-DPO | 保留用于后续复核 |
+
+---
 
 ## 目录结构
 
@@ -91,13 +133,14 @@ Evidence-Med/
 │   └── test_evidence_mask_pipeline.py
 │
 ├── docs/                     # 文档
-│   ├── analysis.md                   # 训练与评测分析报告
+│   ├── analysis.md                   # 详细训练与评测分析报告
+│   ├── 项目总结报告.md                 # 结构化项目总结（推荐）
 │   ├── 后续实验指导.md                 # 实验路线说明
 │   └── prompt改进.md                 # Prompt 迭代记录
 │
 ├── data/                     # 数据集 (gitignored)
 ├── outputs/                  # 模型权重 (gitignored)
-└── results/                  # C-eval评测结果 (gitignored)
+└── results/                  # 评测结果 (gitignored)
 ```
 
 ## Evidence-SFT 输出结构
@@ -130,13 +173,24 @@ Evidence-Med/
 }
 ```
 
+**JSON 输出的价值：**
+
+| 价值 | 说明 |
+|------|------|
+| 可自动验证 | 检查字段完整性、证据是否来自原文、关键证据编号一致性 |
+| 可追溯 | 最终回答与引用证据建立明确关系 |
+| 可扩展 | 前端按需展示"结论、依据、缺失信息" |
+| 可用于风险控制 | 根据 `evidence_sufficiency` 和 `missing_information` 决定是否提示补充信息或转人工 |
+
 ## 训练路线
 
-### 路线 1: Direct Evidence-SFT
+### 路线 1: Direct Evidence-SFT（推荐）
 
 ```
-Qwen2.5-7B-Instruct → Evidence-SFT LoRA  → DPO → D1
+Qwen2.5-7B-Instruct → Evidence-SFT LoRA → DPO → D1
 ```
+
+**优势：** 从零构建成本低（约 1.97 小时），已独立学会结构化输出。
 
 ### 路线 2: Two-stage Evidence-SFT
 
@@ -144,7 +198,11 @@ Qwen2.5-7B-Instruct → Evidence-SFT LoRA  → DPO → D1
 Qwen2.5-7B-Instruct → Full-SFT LoRA → Evidence-SFT → DPO → D1
 ```
 
-两条路线使用相同 Evidence 数据，区别在于初始化方式。实验表明 Direct 路线成本更低且指标差距很小。
+**特点：** 若 Full-SFT 已存在，可利用其小幅起点优势；从零构建成本约为 Direct 的 9.5 倍。
+
+### 关键结论
+
+> **Evidence 数据本身已足以让 Base 模型获得稳定的 JSON、原文证据引用和字段约束能力。前置 Full-SFT 不是形成 Evidence 能力的必要条件。**
 
 ## 评测体系
 
@@ -161,7 +219,7 @@ Qwen2.5-7B-Instruct → Full-SFT LoRA → Evidence-SFT → DPO → D1
 
 ### CEval 医学选择题 (lm_eval, 5-shot)
 
-覆盖 basic_medicine、clinical_medicine、physician 三个子任务。
+覆盖 basic_medicine、clinical_medicine、physician 三个子任务，818 道测试题。四组模型总分最大差异仅 0.49 pp，未观察到灾难性遗忘。
 
 ### CMB 评测 (cmb_eval/)
 
@@ -170,7 +228,7 @@ Qwen2.5-7B-Instruct → Full-SFT LoRA → Evidence-SFT → DPO → D1
 
 ### DPO A/B 评测
 
-双向匿名 Judge，交换 A/B 位置各评一次，只有两次映射到同一模型结论才计入一致结果。
+双向匿名 Judge，交换 A/B 位置各评一次，只有两次映射到同一模型结论才计入一致结果。当前 Judge 换位一致率为 43.27%。
 
 ## Prompt 迭代
 
@@ -237,14 +295,25 @@ bash cmb_eval/run_exam_four_models.sh results/exam
 bash cmb_eval/run_clin_dpo_effect.sh results/clin
 ```
 
+### 5. 测试
+
+```powershell
+# 运行测试套件
+& 'D:\miniconda3\envs\medgpt\python.exe' -m unittest discover -s tests -v
+& 'D:\miniconda3\envs\medgpt\python.exe' -m unittest discover -s cmb_eval/tests -v
+```
+
 ## 文档
 
-- [docs/analysis.md](docs/analysis.md) — 完整训练与评测分析报告
-- [docs/后续实验指导.md](docs/后续实验指导.md) — 后续实验路线（Evidence Mask、DPO、偏好优化）
-- [docs/prompt改进.md](docs/prompt改进.md) — Prompt 迭代记录
-- [process_sft/README.md](process_sft/README.md) — Evidence-SFT 流水线详解
-- [process_dpo/README.md](process_dpo/README.md) — DPO 流水线详解
-- [cmb_eval/README.md](cmb_eval/README.md) — CMB 评测套件说明
+| 文档 | 说明 |
+|------|------|
+| [docs/项目总结报告.md](docs/项目总结报告.md) | **推荐** - 结构化项目总结，包含关键结论和面试表述 |
+| [docs/analysis.md](docs/analysis.md) | 详细训练与评测分析报告（原始版本） |
+| [docs/后续实验指导.md](docs/后续实验指导.md) | 后续实验路线（Evidence Mask、DPO、偏好优化） |
+| [docs/prompt改进.md](docs/prompt改进.md) | Prompt 迭代记录 |
+| [process_sft/README.md](process_sft/README.md) | Evidence-SFT 流水线详解 |
+| [process_dpo/README.md](process_dpo/README.md) | DPO 流水线详解 |
+| [cmb_eval/README.md](cmb_eval/README.md) | CMB 评测套件说明 |
 
 ## 环境变量
 
