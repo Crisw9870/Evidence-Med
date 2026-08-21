@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "process"))
+sys.path.insert(0, str(ROOT / "process_sft"))
 
 from evidence_sft_common import EVIDENCE_SCHEMA_VERSION, stable_source_id  # noqa: E402
 from validate_evidence_sft import validate_dataset  # noqa: E402

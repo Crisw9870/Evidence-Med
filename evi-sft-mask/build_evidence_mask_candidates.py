@@ -30,7 +30,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--input",
-        default="data/evidence_sft/validated_v2_2/03_validated_full.jsonl",
+        default="data/evidence_sft/03_validated_full.jsonl",
     )
     parser.add_argument("--output-dir", default="data/evidence_mask/v1")
     parser.add_argument("--seed", type=int, default=42)

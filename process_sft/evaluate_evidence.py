@@ -11,12 +11,6 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
-import torch
-from peft import PeftModel
-from tqdm.auto import tqdm
-from transformers import AutoModelForCausalLM, AutoTokenizer
-
-
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_FIELDS = {
     "task_type",
@@ -40,11 +34,11 @@ def parse_args() -> argparse.Namespace:
         "--base-model", default=str(ROOT / "Qwen/Qwen2.5-7B-Instruct")
     )
     parser.add_argument(
-        "--adapter", default=str(ROOT / "outputs/evidence-sft-v2-2")
+        "--adapter", default=str(ROOT / "outputs/evidence-sft-frombase")
     )
     parser.add_argument(
         "--test-file",
-        default=str(ROOT / "data/evidence_sft/validated_v2_2/test.jsonl"),
+        default=str(ROOT / "data/evidence_sft/test.jsonl"),
     )
     parser.add_argument(
         "--output-dir", default=str(ROOT / "results/evidence_eval")
@@ -398,6 +392,11 @@ def main() -> None:
     )
     started = time.monotonic()
     if pending:
+        import torch
+        from peft import PeftModel
+        from tqdm.auto import tqdm
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+
         tokenizer = AutoTokenizer.from_pretrained(
             args.base_model, use_fast=True, trust_remote_code=True
         )

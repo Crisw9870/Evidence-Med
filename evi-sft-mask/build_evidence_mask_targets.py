@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import re
+import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -14,8 +15,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from evidence_mask_common import read_jsonl
-from evidence_sft_common import extract_first_json_object
+
+ROOT = Path(__file__).resolve().parents[1]
+PROCESS_SFT = ROOT / "process_sft"
+if str(PROCESS_SFT) not in sys.path:
+    sys.path.insert(0, str(PROCESS_SFT))
+
+from evidence_mask_common import read_jsonl  # noqa: E402
+from evidence_sft_common import extract_first_json_object  # noqa: E402
 
 
 PROMPT_VERSION = "evidence-mask-v1"

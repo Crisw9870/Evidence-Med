@@ -35,8 +35,54 @@ NUMBER_RE = re.compile(
     r"(?<![A-Za-z])\d+(?:\.\d+)?(?:%|℃|岁|天|周|月|年|次|mg|g|ml|mmHg)?",
     re.IGNORECASE,
 )
+NUMBER_WITH_UNIT_RE = re.compile(
+    r"(?<![A-Za-z0-9])\d+(?:\.\d+)?\s*"
+    r"(?:mmol/L|μmol/L|umol/L|mg/dL|ng/mL|次/分钟|次/分|mmHg|"
+    r"小时|分钟|mg|μg|ug|kg|mL|ml|cm|mm|℃|%|岁|天|周|月|年|次|秒|g|L)?",
+    re.IGNORECASE,
+)
 EVIDENCE_ID_RE = re.compile(r"E[1-9]\d*")
 STRONG_ROLE_RE = re.compile(r"排除|证实|证明|确定|明确不是|因此一定是")
+HEDGED_STRONG_ROLE_PREFIX_RE = re.compile(
+    r"不能|无法|尚不能|未能|未被|不支持|不足|仅|提示|倾向|考虑|"
+    r"需|需要|有助于|用于|以便|支持|优先|进一步|(?:^|[^未])未$|不$"
+)
+NONCLINICAL_CERTAINTY_RE = re.compile(
+    r"确定性|确定.{0,12}(?:时间|日期|月份|病程|疗程|方向|方案|治疗|处理|检查|复查|随访|"
+    r"用药|剂量|范围|顺序|类型|性质|部位|需求|必要性|孕周)"
+)
+RESOLVED_STRONG_ROLE_RE = re.compile(
+    r"可能排除|提示.{0,40}排除|需.{0,40}排除|说明.{0,40}排除|"
+    r"提供.{0,40}排除|可(?:初步|辅助)?排除|有助于排除|支持排除|是排除"
+)
+SPAN_DIRECT_DIAGNOSIS_RE = re.compile(
+    r"诊断|确诊|检查.{0,16}(?:说|显示|提示|发现|是)|病理|影像.{0,8}(?:显示|提示)"
+)
+SPAN_NEGATIVE_FINDING_RE = re.compile(
+    r"无|未见|没有|阴性|正常|未发现|排除"
+)
+HIGH_RISK_NUMBER_UNITS = {
+    "%",
+    "℃",
+    "mg",
+    "μg",
+    "ug",
+    "g",
+    "kg",
+    "ml",
+    "l",
+    "mmhg",
+    "mmol/l",
+    "μmol/l",
+    "umol/l",
+    "mg/dl",
+    "ng/ml",
+    "次/分",
+    "次/分钟",
+    "cm",
+    "mm",
+}
+TEMPORAL_NUMBER_UNITS = {"秒", "分钟", "小时", "天", "周", "月", "年", "岁", "次"}
 QUERY_LIKE_SPAN_RE = re.compile(
     r"怎么办|怎么治疗|如何治疗|什么病|怎么回事|是否|是不是|请问|需要什么检查|能活多久|[？?]"
 )
@@ -109,6 +155,95 @@ def _has_overlapping_spans(evidence: list[dict[str, Any]]) -> bool:
         current_start < previous_end
         for (_, previous_end), (current_start, _) in zip(intervals, intervals[1:])
     )
+
+
+def classify_strong_role_claim_risk(span: str, role: str) -> str:
+    """Classify an evidence-role certainty claim for DPO source selection."""
+    strong_matches = []
+    for match in STRONG_ROLE_RE.finditer(role):
+        clause_prefix = re.split(r"[，；。,:：;]", role[: match.start()])[-1]
+        if HEDGED_STRONG_ROLE_PREFIX_RE.search(clause_prefix):
+            continue
+        strong_matches.append(match)
+    if not strong_matches or NONCLINICAL_CERTAINTY_RE.search(role):
+        return "clean"
+    if RESOLVED_STRONG_ROLE_RE.search(role):
+        return "clean"
+    if SPAN_DIRECT_DIAGNOSIS_RE.search(span) and re.search(r"诊断|确诊", role):
+        return "clean"
+    if "排除" in span:
+        return "clean"
+    if SPAN_NEGATIVE_FINDING_RE.search(span) or re.search(r"没|不是", span):
+        return "medium"
+    return "high"
+
+
+def _number_key(value: str) -> str:
+    match = re.match(r"\d+(?:\.\d+)?", value.strip())
+    return match.group(0) if match else ""
+
+
+def _number_label(value: str) -> str:
+    return re.sub(r"\s+", "", value).lower()
+
+
+def _legacy_number_label(value: str) -> str:
+    """Match the labels emitted by the original SFT numeric warning audit."""
+    label = _number_label(value)
+    unit = _number_unit(value)
+    if unit in {"小时", "分钟", "秒"}:
+        return label
+    match = NUMBER_RE.match(value.strip())
+    return _number_label(match.group(0)) if match else label
+
+
+def _number_unit(value: str) -> str:
+    match = re.search(r"[^\d.\s].*$", value)
+    return re.sub(r"\s+", "", match.group(0)).lower() if match else ""
+
+
+def _is_list_enumeration(text: str, start: int, end: int, unit: str) -> bool:
+    if unit:
+        return False
+    suffix = text[end : end + 2].lstrip()
+    return suffix.startswith((".", "、", ")", "）"))
+
+
+def classify_generated_number_risk(
+    case_text: str, clinical_reasoning: str, final_answer: str
+) -> dict[str, list[str]]:
+    """Separate unsupported medical parameters from lower-risk added numbers.
+
+    List numbering is ignored. New doses, concentrations and measurements are
+    high risk; added durations, ages and otherwise unitless values are medium
+    risk.
+    """
+    case_number_keys = {
+        _number_key(match.group(0)) for match in NUMBER_WITH_UNIT_RE.finditer(case_text)
+    }
+    case_number_labels = {
+        _legacy_number_label(match.group(0))
+        for match in NUMBER_WITH_UNIT_RE.finditer(case_text)
+    }
+    generated_text = clinical_reasoning + "\n" + final_answer
+    high: set[str] = set()
+    medium: set[str] = set()
+    for match in NUMBER_WITH_UNIT_RE.finditer(generated_text):
+        raw = match.group(0).strip()
+        key = _number_key(raw)
+        label = _legacy_number_label(raw)
+        unit = _number_unit(raw)
+        if not key or (key in case_number_keys if unit else label in case_number_labels):
+            continue
+        if _is_list_enumeration(generated_text, match.start(), match.end(), unit):
+            continue
+        if unit in TEMPORAL_NUMBER_UNITS:
+            medium.add(label)
+        elif unit in HIGH_RISK_NUMBER_UNITS:
+            high.add(label)
+        else:
+            medium.add(label)
+    return {"high": sorted(high), "medium": sorted(medium)}
 
 
 def audit_output(case_text: str, value: Any, original_answer: str = "") -> AuditResult:

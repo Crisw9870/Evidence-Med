@@ -6,14 +6,26 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
-from evidence_mask_common import read_jsonl, stable_rank, without_offsets, write_jsonl
-from evidence_sft_common import EVIDENCE_SCHEMA_VERSION, extract_first_json_object
-from judge_evidence_mask_targets import valid_judgment
-from validate_evidence_sft import audit_output, build_training_prompt
+
+ROOT = Path(__file__).resolve().parents[1]
+PROCESS_SFT = ROOT / "process_sft"
+if str(PROCESS_SFT) not in sys.path:
+    sys.path.insert(0, str(PROCESS_SFT))
+
+from evidence_mask_common import (  # noqa: E402
+    read_jsonl,
+    stable_rank,
+    without_offsets,
+    write_jsonl,
+)
+from evidence_sft_common import EVIDENCE_SCHEMA_VERSION, extract_first_json_object  # noqa: E402
+from judge_evidence_mask_targets import valid_judgment  # noqa: E402
+from validate_evidence_sft import audit_output, build_training_prompt  # noqa: E402
 
 
 MASK_PROMPT_VERSION = "evidence-mask-v1"
@@ -27,15 +39,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", default="data/evidence_mask/v1/validated")
     parser.add_argument(
         "--original-train",
-        default="data/evidence_sft/validated_v2_2/train.jsonl",
+        default="data/evidence_sft/train/train.jsonl",
     )
     parser.add_argument(
         "--original-validation",
-        default="data/evidence_sft/validated_v2_2/validation.jsonl",
+        default="data/evidence_sft/validation/validation.jsonl",
     )
     parser.add_argument(
         "--original-test",
-        default="data/evidence_sft/validated_v2_2/test.jsonl",
+        default="data/evidence_sft/test.jsonl",
     )
     parser.add_argument("--train-replacements", type=int, default=1918)
     parser.add_argument("--validation-replacements", type=int, default=200)

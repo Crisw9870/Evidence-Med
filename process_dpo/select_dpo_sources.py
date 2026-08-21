@@ -34,10 +34,10 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--input",
-        default="data/evidence_sft/validated_v2_2/03_validated_full.jsonl",
+        default="data/evidence_sft/03_validated_full.jsonl",
     )
-    parser.add_argument("--output", default="data/dpo/answer_v1/00_sources.jsonl")
-    parser.add_argument("--stats-output", default="data/dpo/answer_v1/00_sources.stats.json")
+    parser.add_argument("--output", default="data/dpo/answer_v2/00_sources.jsonl")
+    parser.add_argument("--stats-output", default="data/dpo/answer_v2/00_sources.stats.json")
     parser.add_argument("--train-limit", type=int, default=500)
     parser.add_argument("--validation-limit", type=int, default=100)
     parser.add_argument("--seed", type=int, default=42)

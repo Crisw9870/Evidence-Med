@@ -8,8 +8,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "process"))
-sys.path.insert(0, str(ROOT / "evi-sft-traing"))
+sys.path.insert(0, str(ROOT / "process_sft"))
+sys.path.insert(0, str(ROOT / "evi-sft-mask"))
 
 from aggregate_evidence_mask import (  # noqa: E402
     compare_binary_judgment,
