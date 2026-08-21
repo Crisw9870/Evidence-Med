@@ -6,7 +6,7 @@
 
 ```bash
 cd /home/medgpt
-./evi-sft-traing/run_evidence_sft.sh
+./process_sft/run_evidence_sft.sh
 ```
 
 默认配置：

@@ -127,7 +127,7 @@ python process_sft/validate_evidence_sft.py \
 python process_sft/evaluate_evidence.py \
   --base-model Qwen/Qwen2.5-7B-Instruct \
   --adapter outputs/evidence-sft-frombase \
-  --test-file data/evidence_sft/validated_v2_2/test.jsonl
+  --test-file data/evidence_sft/test.jsonl
 ```
 
 评估指标：

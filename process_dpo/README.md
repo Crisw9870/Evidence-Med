@@ -110,7 +110,7 @@ warning 策略分为：
   evidence span、否定和限定语重新判断；纯分点序号忽略，新增时长或无单位数字
   视为中风险，新增剂量、浓度、生命体征阈值等医学参数视为高风险。高风险排除，
   每个 split 的中风险占比默认不超过 15%；
-- `strict`：复现旧实验，只要命中上述任一历史 warning 就排除；
+- `strict`：模拟旧版一票否决语义，只要命中上述任一历史 warning 就排除；
 - `all`：通过 target Schema/grounding 硬审计后不再按 warning 排除，仅用于审计或消融，不建议直接作为主实验默认配置。
 
 输出样本保留 `target_warnings`，并新增 `warning_risk`、具体原因、涉及的evidence id 和数字；stats 同时报告评估前、eligible 和最终 selected 的风险分布。
@@ -365,13 +365,21 @@ CUDA_VISIBLE_DEVICES=0 python3 process_dpo/prepare_dpo_start.py \
 
 输出目录必须为空或不存在。不要用原始 Qwen base 直接训练 DPO，也不要把 adapter-only 目录直接传给训练器。
 
-### 步骤 2：选择 3000/200 个来源病例
+### 步骤 2：使用冻结的 3000/200 个来源病例
+
+正式 DPO v1 的来源清单已经冻结为
+`data/dpo/answer_v1/00_sources.jsonl`。精确复现实验时直接使用该文件；
+`tests/test_dpo_pipeline.py` 会校验 3,200 个 `source_id` 的顺序摘要，防止来源池被静默替换。
+
+历史来源选择所依赖的 warning-risk 纯函数没有随当时实验提交，因此不要用当前
+selector 覆盖 v1 清单并宣称得到字节级相同的数据。若要基于当前审计规则构造新版本，
+请写入新的版本目录，例如：
 
 ```bash
 python3 process_dpo/select_dpo_sources.py \
-  --input data/evidence_sft/validated_v2_2/03_validated_full.jsonl \
-  --output data/dpo/answer_v1/00_sources.jsonl \
-  --stats-output data/dpo/answer_v1/00_sources.stats.json \
+  --input data/evidence_sft/03_validated_full.jsonl \
+  --output data/dpo/answer_v2/00_sources.jsonl \
+  --stats-output data/dpo/answer_v2/00_sources.stats.json \
   --train-limit 3000 \
   --validation-limit 200 \
   --warning-policy tiered \
@@ -379,9 +387,9 @@ python3 process_dpo/select_dpo_sources.py \
   --seed 42
 ```
 
-当前数据可产出 3000 train 和 200 validation；`conflicting` 只有 1 条，不能用本轮结果声称该类别已被充分优化。
+冻结的 v1 清单包含 3000 train 和 200 validation；`conflicting` 只有 1 条，不能用本轮结果声称该类别已被充分优化。
 
-如需复现旧的一票否决或做放开全部 warning 的消融，只改
+如需对当前规则做一票否决或放开全部 warning 的消融，只改
 `--warning-policy strict` 或 `--warning-policy all`，不要修改源数据。正式生成候选前，
 检查 stats 中的 `selected_warning_risk`、`assessed_warning_reasons` 和
 `rejected.warning_risk:high`。
@@ -715,11 +723,11 @@ CUDA_VISIBLE_DEVICES=0 python3 training/dpo_training.py \
 D0：
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python3 evi-sft-traing/evaluate_evidence.py \
+CUDA_VISIBLE_DEVICES=0 python3 process_sft/evaluate_evidence.py \
   --base-model ./Qwen/Qwen2.5-7B-Instruct \
   --adapter ./outputs/evidence-sft-frombase \
   --tokenizer-name-or-path ./Qwen/Qwen2.5-7B-Instruct \
-  --test-file ./data/evidence_sft/validated_v2_2/test.jsonl \
+  --test-file ./data/evidence_sft/test.jsonl \
   --output-dir ./results/evidence_d0_direct_eval \
   --batch-size 8 \
   --max-new-tokens 1152
@@ -728,11 +736,11 @@ CUDA_VISIBLE_DEVICES=0 python3 evi-sft-traing/evaluate_evidence.py \
 D1：
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python3 evi-sft-traing/evaluate_evidence.py \
+CUDA_VISIBLE_DEVICES=0 python3 process_sft/evaluate_evidence.py \
   --base-model ./outputs/dpo-start-direct-merged \
   --adapter ./outputs/evidence-dpo-answer-v1 \
   --tokenizer-name-or-path ./Qwen/Qwen2.5-7B-Instruct \
-  --test-file ./data/evidence_sft/validated_v2_2/test.jsonl \
+  --test-file ./data/evidence_sft/test.jsonl \
   --output-dir ./results/evidence_dpo_answer_eval \
   --batch-size 8 \
   --max-new-tokens 1152
