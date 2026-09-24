@@ -1,0 +1,54 @@
+### model
+model_name_or_path: ./Qwen/Qwen2.5-7B-Instruct
+trust_remote_code: true
+
+### method
+stage: sft
+do_train: true
+do_eval: true
+finetuning_type: lora
+lora_target: all
+lora_rank: 16
+lora_alpha: 32
+lora_dropout: 0.05
+
+### dataset
+dataset_dir: ./llamafactory_recipes/data
+dataset: evidence_sft_train
+eval_dataset: evidence_sft_validation
+template: qwen
+cutoff_len: 1536
+packing: false
+overwrite_cache: false
+preprocessing_num_workers: 6
+dataloader_num_workers: 2
+
+### output
+output_dir: ./outputs/llamafactory-evidence-sft
+logging_steps: 10
+save_steps: 100
+save_total_limit: 2
+plot_loss: true
+overwrite_output_dir: false
+save_only_model: false
+report_to: tensorboard
+
+### train
+per_device_train_batch_size: 8
+per_device_eval_batch_size: 1
+gradient_accumulation_steps: 4
+learning_rate: 1.0e-5
+num_train_epochs: 2.0
+lr_scheduler_type: linear
+warmup_ratio: 0.03
+weight_decay: 0.01
+bf16: true
+fp16: false
+gradient_checkpointing: true
+seed: 42
+data_seed: 42
+ddp_timeout: 180000000
+
+### eval
+eval_strategy: steps
+eval_steps: 100
